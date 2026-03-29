@@ -1,9 +1,10 @@
 import { io } from "socket.io-client";
+import { getApiUrl } from "../../../config/apiConfig.js";
 
 
 export const initializeSocketConnection = () => {
-
-    const socket = io("http://localhost:3000", {
+    const socketURL = getApiUrl()
+    const socket = io(socketURL, {
         withCredentials: true,
     })
 
@@ -11,4 +12,5 @@ export const initializeSocketConnection = () => {
         console.log("Connected to Socket.IO server")
     })
 
+    return socket
 }

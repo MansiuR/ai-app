@@ -12,9 +12,12 @@ export function useAuth() {
     async function handleRegister({ email, username, password }) {
         try {
             dispatch(setLoading(true))
+            dispatch(setError(null))
             const data = await register({ email, username, password })
+            dispatch(setError("Registration successful! Please check your email to verify your account."))
         } catch (error) {
-            dispatch(setError(error.response?.data?.message || "Registration failed"))
+            dispatch(setError(error.response?.data?.message || error.message || "Registration failed"))
+            throw error
         } finally {
             dispatch(setLoading(false))
         }
@@ -23,10 +26,18 @@ export function useAuth() {
     async function handleLogin({ email, password }) {
         try {
             dispatch(setLoading(true))
+            dispatch(setError(null))
             const data = await login({ email, password })
-            dispatch(setUser(data.user))
+            if (data.user) {
+                dispatch(setUser(data.user))
+                dispatch(setError(null))
+            } else {
+                throw new Error("No user data returned from server")
+            }
         } catch (err) {
-            dispatch(setError(err.response?.data?.message || "Login failed"))
+            const errorMsg = err.response?.data?.message || err.message || "Login failed"
+            dispatch(setError(errorMsg))
+            throw err
         } finally {
             dispatch(setLoading(false))
         }
@@ -36,9 +47,12 @@ export function useAuth() {
         try {
             dispatch(setLoading(true))
             const data = await getMe()
-            dispatch(setUser(data.user))
+            if (data.user) {
+                dispatch(setUser(data.user))
+            }
         } catch (err) {
-            dispatch(setError(err.response?.data?.message || "Failed to fetch user data"))
+            // Silently fail for get-me to prevent infinite errors
+            console.log("User not authenticated", err.response?.status)
         } finally {
             dispatch(setLoading(false))
         }

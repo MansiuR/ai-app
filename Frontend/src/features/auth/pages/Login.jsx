@@ -25,8 +25,10 @@ const Login = () => {
         }
 
         await handleLogin(payload)
-        navigate("/")
-
+        // Wait a bit for state update before navigating
+        setTimeout(() => {
+            navigate("/")
+        }, 500)
     }
 
     if(!loading && user){

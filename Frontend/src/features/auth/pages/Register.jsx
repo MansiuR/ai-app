@@ -1,12 +1,17 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import { useAuth } from '../hook/useAuth.js'
+import { useSelector } from 'react-redux'
 
 const Register = () => {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const { handleRegister } = useAuth()
+  const navigate = useNavigate()
+  const loading = useSelector(state => state.auth.loading)
 
-  const submitForm = (event) => {
+  const submitForm = async (event) => {
     event.preventDefault()
 
     const payload = {
@@ -15,7 +20,10 @@ const Register = () => {
       password,
     }
 
-    console.log('Register payload:', payload)
+    await handleRegister(payload)
+    setTimeout(() => {
+      navigate('/login')
+    }, 1000)
   }
 
   return (
@@ -77,9 +85,10 @@ const Register = () => {
 
             <button
               type="submit"
-             className="w-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3 font-semibold text-white transition hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(99,102,241,0.6)]"
+              disabled={loading}
+             className="w-full rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3 font-semibold text-white transition hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(99,102,241,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Register
+              {loading ? 'Registering...' : 'Register'}
             </button>
           </form>
 

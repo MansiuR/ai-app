@@ -19,7 +19,7 @@ export const useChat = () => {
     }
 }
 
-    async function handleSendMessage({message, chatId}){
+    async function handleSendMessage({message, chatId, file}){
         dispatch(setLoading(true))
         setIsTyping(true)
         try {
