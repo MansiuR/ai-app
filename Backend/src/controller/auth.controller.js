@@ -12,6 +12,8 @@ export async function register(req, res) {
     try {
         const { username, email, password } = req.body;
 
+        console.log("Registration attempt:", { username, email });
+
         if (!username || !email || !password) {
             return res.status(400).json({
                 message: "Username, email, and password are required",
@@ -33,6 +35,7 @@ export async function register(req, res) {
         }
 
         const user = await userModel.create({ username, email, password })
+        console.log("User created:", user._id);
 
         const emailVerificationToken = jwt.sign({
             email: user.email,
@@ -40,10 +43,12 @@ export async function register(req, res) {
 
         const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
 
-        await sendEmail({
-            to: email,
-            subject: "Welcome to Perplexity!",
-            html: `
+        // Send email but don't fail registration if email fails
+        try {
+            await sendEmail({
+                to: email,
+                subject: "Welcome to Perplexity!",
+                html: `
                 <p>Hi ${username},</p>
                 <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
                 <p>Please verify your email address by clicking the link below:</p>
@@ -51,10 +56,15 @@ export async function register(req, res) {
                 <p>If you did not create an account, please ignore this email.</p>
                 <p>Best regards,<br>The Perplexity Team</p>
         `
-        })
+            })
+            console.log("Verification email sent to:", email);
+        } catch (emailError) {
+            console.error("Email sending failed:", emailError.message);
+            // Don't fail registration if email fails, just log it
+        }
 
         res.status(201).json({
-            message: "User registered successfully",
+            message: "User registered successfully. Please check your email to verify your account.",
             success: true,
             user: {
                 id: user._id,

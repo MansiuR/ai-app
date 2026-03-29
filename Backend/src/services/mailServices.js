@@ -19,15 +19,25 @@ transporter.verify()
 
 
 export async function sendEmail({ to, subject, html, text }) {
+    try {
+        if (!process.env.GOOGLE_USER || !process.env.GOOGLE_CLIENT_ID) {
+            console.warn("Email service not fully configured, skipping email send");
+            return { messageId: "test-mode", accepted: [to] };
+        }
 
-    const mailOptions = {
-        from: process.env.GOOGLE_USER,
-        to,
-        subject,
-        html,
-        text
-    };
+        const mailOptions = {
+            from: process.env.GOOGLE_USER,
+            to,
+            subject,
+            html,
+            text
+        };
 
-    const details = await transporter.sendMail(mailOptions);
-    console.log("Email sent:", details);
+        const details = await transporter.sendMail(mailOptions);
+        console.log("Email sent successfully:", details.messageId);
+        return details;
+    } catch (error) {
+        console.error("Failed to send email:", error.message);
+        throw new Error(`Email service failed: ${error.message}`);
+    }
 }
