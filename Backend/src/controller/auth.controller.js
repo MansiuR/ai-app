@@ -9,33 +9,41 @@ import { sendEmail } from "../services/mailServices.js";
  * @body { username, email, password }
  */
 export async function register(req, res) {
+    try {
+        const { username, email, password } = req.body;
 
-    const { username, email, password } = req.body;
+        if (!username || !email || !password) {
+            return res.status(400).json({
+                message: "Username, email, and password are required",
+                success: false,
+                err: "Missing fields"
+            })
+        }
 
-    const isUserAlreadyExists = await userModel.findOne({
-        $or: [ { email }, { username } ]
-    })
-
-    if (isUserAlreadyExists) {
-        return res.status(400).json({
-            message: "User with this email or username already exists",
-            success: false,
-            err: "User already exists"
+        const isUserAlreadyExists = await userModel.findOne({
+            $or: [ { email }, { username } ]
         })
-    }
 
-    const user = await userModel.create({ username, email, password })
+        if (isUserAlreadyExists) {
+            return res.status(400).json({
+                message: "User with this email or username already exists",
+                success: false,
+                err: "User already exists"
+            })
+        }
 
-    const emailVerificationToken = jwt.sign({
-        email: user.email,
-    }, process.env.JWT_SECRET)
+        const user = await userModel.create({ username, email, password })
 
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
+        const emailVerificationToken = jwt.sign({
+            email: user.email,
+        }, process.env.JWT_SECRET)
 
-    await sendEmail({
-        to: email,
-        subject: "Welcome to Perplexity!",
-        html: `
+        const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
+
+        await sendEmail({
+            to: email,
+            subject: "Welcome to Perplexity!",
+            html: `
                 <p>Hi ${username},</p>
                 <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
                 <p>Please verify your email address by clicking the link below:</p>
@@ -43,20 +51,25 @@ export async function register(req, res) {
                 <p>If you did not create an account, please ignore this email.</p>
                 <p>Best regards,<br>The Perplexity Team</p>
         `
-    })
+        })
 
-    res.status(201).json({
-        message: "User registered successfully",
-        success: true,
-        user: {
-            id: user._id,
-            username: user.username,
-            email: user.email
-        }
-    });
-
-
-
+        res.status(201).json({
+            message: "User registered successfully",
+            success: true,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        console.error("Register error:", error);
+        res.status(500).json({
+            message: "Server error during registration",
+            success: false,
+            err: error.message
+        })
+    }
 }
 
 /**
@@ -66,53 +79,74 @@ export async function register(req, res) {
  * @body { email, password }
  */
 export async function login(req, res) {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
-    const user = await userModel.findOne({ email })
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Email and password are required",
+                success: false,
+                err: "Missing credentials"
+            })
+        }
 
-    if (!user) {
-        return res.status(400).json({
-            message: "User Not Found! Please register first",
-            success: false,
-            err: "User not found"
-        })
-    }
+        const user = await userModel.findOne({ email })
 
-    const isPasswordMatch = await user.comparePassword(password);
+        if (!user) {
+            return res.status(400).json({
+                message: "User Not Found! Please register first",
+                success: false,
+                err: "User not found"
+            })
+        }
 
-    if (!isPasswordMatch) {
-        return res.status(400).json({
-            message: "Invalid email or password",
-            success: false,
-            err: "Incorrect password"
-        })
-    }
+        const isPasswordMatch = await user.comparePassword(password);
 
-    if (!user.verified) {
-        return res.status(400).json({
-            message: "Please verify your email before logging in",
-            success: false,
-            err: "Email not verified"
-        })
-    }
+        if (!isPasswordMatch) {
+            return res.status(400).json({
+                message: "Invalid email or password",
+                success: false,
+                err: "Incorrect password"
+            })
+        }
 
-    const token = jwt.sign({
-        id: user._id,
-        username: user.username,
-    }, process.env.JWT_SECRET, { expiresIn: '7d' })
+        if (!user.verified) {
+            return res.status(400).json({
+                message: "Please verify your email before logging in",
+                success: false,
+                err: "Email not verified"
+            })
+        }
 
-    res.cookie("token", token)
-
-    res.status(200).json({
-        message: "Login successful",
-        success: true,
-        user: {
+        const token = jwt.sign({
             id: user._id,
             username: user.username,
-            email: user.email
-        }
-    })
+        }, process.env.JWT_SECRET, { expiresIn: '7d' })
 
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        })
+
+        res.status(200).json({
+            message: "Login successful",
+            success: true,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        })
+    } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({
+            message: "Server error during login",
+            success: false,
+            err: error.message
+        })
+    }
 }
 
 

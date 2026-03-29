@@ -4,7 +4,12 @@ import { body, validationResult } from "express-validator";
 export function validate(req, res, next) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        console.error("Validation errors:", errors.array());
+        return res.status(400).json({ 
+            message: "Validation failed",
+            success: false,
+            errors: errors.array() 
+        });
     }
     next();
 }
@@ -32,10 +37,13 @@ export const loginValidator = [
     body("email")
         .trim()
         .notEmpty().withMessage("Email is required")
+        .bail()
         .isEmail().withMessage("Please provide a valid email"),
 
     body("password")
-        .notEmpty().withMessage("Password is required"),
+        .trim()
+        .notEmpty().withMessage("Password is required")
+        .isLength({ min: 1 }).withMessage("Password cannot be empty"),
 
     validate
 ];
