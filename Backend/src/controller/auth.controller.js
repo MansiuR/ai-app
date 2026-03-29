@@ -230,3 +230,135 @@ export async function verifyEmail(req, res) {
         })
     }
 }
+
+/**
+ * @desc Manually verify user email (for testing)
+ * @route POST /api/auth/manual-verify
+ * @access Public (for testing only)
+ * @body { email }
+ */
+export async function manualVerifyEmail(req, res) {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required",
+                success: false,
+                err: "Missing email"
+            });
+        }
+
+        const user = await userModel.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false,
+                err: "User not found"
+            });
+        }
+
+        user.verified = true;
+        await user.save();
+
+        res.status(200).json({
+            message: "Email verified successfully",
+            success: true,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                verified: user.verified
+            }
+        });
+    } catch (error) {
+        console.error("Manual verify error:", error);
+        res.status(500).json({
+            message: "Server error during verification",
+            success: false,
+            err: error.message
+        });
+    }
+}
+
+/**
+ * @desc Resend verification email
+ * @route POST /api/auth/resend-verification
+ * @access Public
+ * @body { email }
+ */
+export async function resendVerificationEmail(req, res) {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required",
+                success: false,
+                err: "Missing email"
+            });
+        }
+
+        const user = await userModel.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false,
+                err: "User not found"
+            });
+        }
+
+        if (user.verified) {
+            return res.status(400).json({
+                message: "Email already verified",
+                success: false,
+                err: "Already verified"
+            });
+        }
+
+        const emailVerificationToken = jwt.sign(
+            { email: user.email },
+            process.env.JWT_SECRET
+        );
+
+        const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+
+        try {
+            await sendEmail({
+                to: email,
+                subject: "Verify Your Email - Perplexity",
+                html: `
+                    <h2>Email Verification</h2>
+                    <p>Hi ${user.username},</p>
+                    <p>Please verify your email by clicking the link below:</p>
+                    <a href="${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}">
+                        Verify Email
+                    </a>
+                    <p>Link expires in 24 hours.</p>
+                    <p>Best regards,<br>The Perplexity Team</p>
+                `
+            });
+
+            res.status(200).json({
+                message: "Verification email sent successfully",
+                success: true
+            });
+        } catch (emailError) {
+            console.error("Failed to resend verification email:", emailError);
+            res.status(500).json({
+                message: "Failed to send verification email",
+                success: false,
+                err: emailError.message
+            });
+        }
+    } catch (error) {
+        console.error("Resend verification error:", error);
+        res.status(500).json({
+            message: "Server error",
+            success: false,
+            err: error.message
+        });
+    }
+}

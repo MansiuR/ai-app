@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, verifyEmail, login, getMe } from "../controller/auth.controller.js";
+import { register, verifyEmail, login, getMe, manualVerifyEmail, resendVerificationEmail } from "../controller/auth.controller.js";
 import { registerValidator, loginValidator } from "../validators/authValidator.js";
 import { authUser } from "../middleware/authMiddleware.js";
 
@@ -38,5 +38,21 @@ authRouter.get('/get-me', authUser, getMe)
  * @query { token }
  */
 authRouter.get('/verify-email', verifyEmail)
+
+/**
+ * @route POST /api/auth/manual-verify
+ * @desc Manually verify user email (for testing)
+ * @access Public
+ * @body { email }
+ */
+authRouter.post('/manual-verify', manualVerifyEmail)
+
+/**
+ * @route POST /api/auth/resend-verification
+ * @desc Resend verification email
+ * @access Public
+ * @body { email }
+ */
+authRouter.post('/resend-verification', resendVerificationEmail)
 
 export default authRouter;
