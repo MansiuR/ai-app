@@ -9,12 +9,17 @@ import { sendEmail } from "../services/mailServices.js";
  * @body { username, email, password }
  */
 export async function register(req, res) {
+    console.log("\n====== REGISTRATION START ======");
+    console.log("Request body:", req.body);
+    
     try {
         const { username, email, password } = req.body;
 
-        console.log("Registration attempt:", { username, email });
+        console.log("Step 1: Parsed input", { username, email, hasPassword: !!password });
 
+        // Validate input
         if (!username || !email || !password) {
+            console.log("Step 2: Validation failed - missing fields");
             return res.status(400).json({
                 message: "Username, email, and password are required",
                 success: false,
@@ -22,11 +27,13 @@ export async function register(req, res) {
             })
         }
 
+        console.log("Step 3: Checking if user already exists");
         const isUserAlreadyExists = await userModel.findOne({
             $or: [ { email }, { username } ]
         })
 
         if (isUserAlreadyExists) {
+            console.log("Step 4: User already exists");
             return res.status(400).json({
                 message: "User with this email or username already exists",
                 success: false,
@@ -34,8 +41,9 @@ export async function register(req, res) {
             })
         }
 
+        console.log("Step 5: Creating user in database");
         const user = await userModel.create({ username, email, password })
-        console.log("User created:", user._id);
+        console.log("Step 6: ✅ User created successfully:", user._id);
 
         const emailVerificationToken = jwt.sign({
             email: user.email,
@@ -44,6 +52,7 @@ export async function register(req, res) {
         const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
 
         // Send email but don't fail registration if email fails
+        console.log("Step 7: Attempting to send verification email...");
         try {
             await sendEmail({
                 to: email,
@@ -57,14 +66,16 @@ export async function register(req, res) {
                 <p>Best regards,<br>The Perplexity Team</p>
         `
             })
-            console.log("Verification email sent to:", email);
+            console.log("Step 8: ✅ Verification email sent to:", email);
         } catch (emailError) {
-            console.error("Email sending failed:", emailError.message);
-            // Don't fail registration if email fails, just log it
+            console.error("Step 8: ❌ Email sending failed:", emailError.message);
+            // Continue - don't fail registration
+            console.log("Step 8b: Continuing with registration despite email failure");
         }
 
+        console.log("Step 9: Sending success response");
         res.status(201).json({
-            message: "User registered successfully. Please check your email to verify your account.",
+            message: "User registered successfully. Please use manual verification or check email.",
             success: true,
             user: {
                 id: user._id,
@@ -72,8 +83,14 @@ export async function register(req, res) {
                 email: user.email
             }
         });
+        console.log("====== REGISTRATION SUCCESS ======\n");
+        
     } catch (error) {
-        console.error("Register error:", error);
+        console.error("❌ REGISTRATION ERROR:", error);
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        
         res.status(500).json({
             message: "Server error during registration",
             success: false,
