@@ -42,8 +42,14 @@ export async function register(req, res) {
         }
 
         console.log("Step 5: Creating user in database");
-        const user = await userModel.create({ username, email, password })
+        const user = await userModel.create({ 
+            username, 
+            email, 
+            password,
+            verified: false
+        })
         console.log("Step 6: ✅ User created successfully:", user._id);
+        console.log("Step 6b: User verified status:", user.verified);
 
         const emailVerificationToken = jwt.sign({
             email: user.email,
@@ -51,36 +57,45 @@ export async function register(req, res) {
 
         const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
 
-        // Send email but don't fail registration if email fails
         console.log("Step 7: Attempting to send verification email...");
         try {
+            if (!process.env.GOOGLE_USER) {
+                console.warn("⚠️  WARNING: GOOGLE_USER environment variable not set");
+            }
+
             await sendEmail({
                 to: email,
-                subject: "Welcome to Perplexity!",
+                subject: "Welcome to Perplexity! - Verify Your Email",
                 html: `
-                <p>Hi ${username},</p>
-                <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
-                <p>Please verify your email address by clicking the link below:</p>
-                <a href="${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}">Verify Email</a>
-                <p>If you did not create an account, please ignore this email.</p>
-                <p>Best regards,<br>The Perplexity Team</p>
-        `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Welcome to Perplexity! 🚀</h2>
+                    <p>Hi <strong>${username}</strong>,</p>
+                    <p>Thank you for registering at <strong>Perplexity</strong>. We're excited to have you on board!</p>
+                    <p><strong>Please verify your email address by clicking the link below:</strong></p>
+                    <p style="margin: 20px 0;">
+                        <a href="${backendUrl}/api/auth/verify-email?token=${emailVerificationToken}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email</a>
+                    </p>
+                    <p>If you did not create an account, please ignore this email.</p>
+                    <hr>
+                    <p style="color: #666; font-size: 12px;">Best regards,<br><strong>The Perplexity Team</strong></p>
+                </div>
+                `
             })
             console.log("Step 8: ✅ Verification email sent to:", email);
         } catch (emailError) {
             console.error("Step 8: ❌ Email sending failed:", emailError.message);
-            // Continue - don't fail registration
             console.log("Step 8b: Continuing with registration despite email failure");
         }
 
         console.log("Step 9: Sending success response");
         res.status(201).json({
-            message: "User registered successfully. Please use manual verification or check email.",
+            message: "User registered successfully! Please check your email to verify your account.",
             success: true,
             user: {
                 id: user._id,
                 username: user.username,
-                email: user.email
+                email: user.email,
+                verified: user.verified
             }
         });
         console.log("====== REGISTRATION SUCCESS ======\n");
